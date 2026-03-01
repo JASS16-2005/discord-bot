@@ -1,8 +1,28 @@
 // index.js
 // Bot de Discord básico usando discord.js
 
+const http = require('http');
 const { Client, GatewayIntentBits } = require('discord.js');
 require('dotenv').config();
+
+const token = process.env.DISCORD_TOKEN;
+
+if (!token) {
+    console.error('Falta DISCORD_TOKEN en variables de entorno.');
+    process.exit(1);
+}
+
+if (process.env.PORT) {
+    const port = Number(process.env.PORT);
+    http
+        .createServer((req, res) => {
+            res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+            res.end('Bot activo');
+        })
+        .listen(port, () => {
+            console.log(`Servidor HTTP de healthcheck activo en puerto ${port}`);
+        });
+}
 
 const client = new Client({
     intents: [
@@ -77,8 +97,24 @@ client.on('guildMemberAdd', async member => {
     await enviarBienvenida(member);
 });
 
-client.once('ready', () => {
+client.once('clientReady', () => {
     console.log(`Bot listo como ${client.user.tag}`);
+});
+
+client.on('error', error => {
+    console.error('Error del cliente de Discord:', error);
+});
+
+client.on('shardError', error => {
+    console.error('Error de conexión con gateway de Discord:', error);
+});
+
+process.on('unhandledRejection', error => {
+    console.error('Unhandled Rejection:', error);
+});
+
+process.on('uncaughtException', error => {
+    console.error('Uncaught Exception:', error);
 });
 
 client.on('messageCreate', message => {
@@ -92,4 +128,7 @@ client.on('messageCreate', message => {
     }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(token).catch(error => {
+    console.error('No se pudo iniciar sesión en Discord. Revisa DISCORD_TOKEN.', error);
+    process.exit(1);
+});
